@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 fn main() {
     let mut left_list: Vec<i32> = Vec::new();
     let mut right_list: Vec<i32> = Vec::new();
@@ -13,6 +15,14 @@ fn main() {
         right_list.push(split[1].parse::<i32>().unwrap());
     });
 
+    let total_distance = distance(left_list.clone(), right_list.clone());
+    println!("total distance: {}", total_distance);
+
+    let total_similarity = similarity(left_list, right_list);
+    println!("total similarity: {}", total_similarity);
+}
+
+fn distance(mut left_list: Vec<i32>, mut right_list: Vec<i32>) -> i32 {
     left_list.sort();
     right_list.sort();
 
@@ -21,8 +31,31 @@ fn main() {
         let right = right_list.get(i).unwrap();
         total_distance += (left - right).abs();
     }
-    println!("total distance: {}", total_distance);
+    return total_distance;
 }
+
+fn similarity(left_list: Vec<i32>, right_list: Vec<i32>) -> i32 {
+    let mut right_counts: HashMap<i32, i32> = HashMap::new();
+    for (_, right) in right_list.iter().enumerate() {
+        let count = right_counts.entry(*right).or_insert(0);
+        *count += 1;
+    }
+
+    let mut total_similarity = 0;
+    for left in left_list.iter() {
+        total_similarity += left * right_counts.get(left).unwrap_or(&0);
+    }
+    return total_similarity;
+}
+
+const TEST_INPUT: &str = "
+3   4
+4   3
+2   5
+1   3
+3   9
+3   3
+";
 
 const PUZZLE_INPUT: &str = "
 82728   61150
