@@ -1,0 +1,127 @@
+use core::{fmt, ops::Range};
+use std::{fs, process::exit, slice::Iter};
+
+const INPUT_PATH: &str = "./data/test_input.txt";
+
+#[derive(Debug)]
+struct Offset {
+    x: i32,
+    y: i32
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum Direction {
+    UpLeft,
+    Up,
+    UpRight,
+    Right,
+    DownRight,
+    Down,
+    DownLeft,
+    Left,
+}
+
+impl Direction {
+    pub const fn offset(&self) -> Offset {
+        return match *self {
+            Direction::UpLeft => Offset { x: -1, y: -1 },
+            Direction::Up => Offset { x: 0, y: -1 },
+            Direction::UpRight => Offset { x: 1, y: -1 },
+            Direction::Right => Offset { x: 1, y: 0 },
+            Direction::DownRight => Offset { x: 1, y: 1 },
+            Direction::Down => Offset { x: 0, y: 1 },
+            Direction::DownLeft => Offset { x: -1, y: 1 },
+            Direction::Left => Offset { x: -1, y: 0 },
+        }
+    }
+
+    pub fn iter() -> Iter<'static, Direction> {
+        return [
+            Direction::UpLeft,
+            Direction::Up,
+            Direction::UpRight,
+            Direction::Right,
+            Direction::DownRight,
+            Direction::Down,
+            Direction::DownLeft,
+            Direction::Left
+        ].iter();
+    }
+}
+
+impl fmt::Display for Direction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}({:?})", self, self.offset())
+    }
+}
+
+fn main() {
+    let input = fs::read_to_string(INPUT_PATH);
+    match input {
+        Ok(i) => {
+            let grid = to_grid(&i);
+            let count = count_xmas(&grid);
+            println!("count: {count}");
+        },
+        Err(e) => {
+            println!("{e:?}");
+            exit(-1);
+        }
+    }
+}
+
+fn to_grid(str: &str) -> Vec<Vec<char>> {
+    return str.split_terminator("\n")
+        .map(|l| l.chars().collect())
+        .collect();
+}
+
+fn count_xmas(grid: &Vec<Vec<char>>) -> i32 {
+    let y_max = grid.len();
+    let x_max = grid[0].len();
+
+    let mut count_total = 0;
+    for y in 0..y_max {
+        for x in 0..x_max {
+            let char = grid[y][x];
+            if char == 'X' {
+                count_total += count_xmas_at((x, y), (x_max, y_max), grid);
+            }
+        }
+    }
+    return count_total;
+}
+
+fn count_xmas_at(origin: (usize, usize), max: (usize, usize), grid: &Vec<Vec<char>>) -> i32 {
+    let mut count = 0;
+    for direction in Direction::iter() {
+        let offset = direction.offset();
+        let mut word = String::new();
+
+        for i in 0..4 {
+            let x = origin.0 as i32 + (offset.x * i);
+            let y = origin.1 as i32 + (offset.y * i);
+
+            let bound_x = to_bounded_usize(x, max.0);
+            let bound_y = to_bounded_usize(y, max.1);
+
+            word.push(grid[bound_y][bound_x]);
+        }
+
+        if word.eq("XMAS") {
+            count += 1;
+            // println!("{word}");
+        }
+    }
+    return count;
+}
+
+fn to_bounded_usize(v: i32, max: usize) -> usize {
+    if v.is_negative() {
+        return 0;
+    } else if v < (max - 1) as i32 {
+        return v as usize;
+    } else {
+        return max - 1;
+    }
+}
