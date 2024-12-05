@@ -36,6 +36,10 @@ impl Offset {
             })
         }
     }
+
+    fn inverse(&self) -> Offset {
+        return Offset { x: self.x * -1, y: self.y * - 1};
+    }
 }
 
 fn main() {
@@ -70,25 +74,7 @@ fn count_xmas(grid: &LetterGrid) -> i32 {
         let x_max: usize = grid[y].len();
         for x in 0..x_max {
             let char = grid[y][x];
-            if char == 'X' {
-                count += count_mas(Point { x, y }, grid, &Point { x: x_max - 1, y: y_max - 1 });
-            }
-        }
-    }
-    return count;
-}
-
-fn count_mas(at: Point, grid: &LetterGrid, limit: &Point) -> i32 {
-    let mut count = 0;
-    for y in -1..=1 {
-        for x in -1..=1 {
-            if x == 0 && y == 0 {
-                continue;
-            }
-
-            let offset = Offset { x, y };
-            if is_word(&at, &offset, grid, limit, VecDeque::from(vec!['M', 'A', 'S'])) {
-                println!("matched at {at:?} with offset {offset:?}");
+            if char == 'A' && is_xmas(Point { x, y }, grid, &Point { x: x_max - 1, y: y_max - 1 }) {
                 count += 1;
             }
         }
@@ -96,15 +82,37 @@ fn count_mas(at: Point, grid: &LetterGrid, limit: &Point) -> i32 {
     return count;
 }
 
+fn is_xmas(at: Point, grid: &LetterGrid, limit: &Point) -> bool {
+    let mut matched_offsets: Vec<Offset> = Vec::new();
+    for y in [-1, 1] {
+        for x in [-1, 1] {
+            let offset = Offset { x, y };
+            match at.add_offset(&offset).to_point(limit) {
+                None => continue,
+                Some(origin) => {
+                    if is_word(&origin, &offset.inverse(), grid, limit, VecDeque::from(vec!['M', 'A', 'S'])) {
+                        matched_offsets.push(offset);
+                    }
+                }
+            }
+        }
+    }
+    if matched_offsets.len() >= 2 {
+        println!("matched at {at:?} with offsets {matched_offsets:?}");
+        return true;
+    }
+    return false;
+}
+
 fn is_word(origin: &Point, offset: &Offset, grid: &LetterGrid, limit: &Point, mut word: VecDeque<char>) -> bool {
     match word.pop_front() {
         None => return true,
         Some(word_char) => {
-            match origin.add_offset(offset).to_point(limit) {
-                None => return false,
-                Some(point) => {
-                    let grid_char = grid[point.y][point.x];
-                    if grid_char == word_char {
+            let grid_char = grid[origin.y][origin.x];
+            if grid_char == word_char {
+                match origin.add_offset(offset).to_point(limit) {
+                    None => return word.is_empty(),
+                    Some(point) => {
                         return is_word(&point, offset, grid, limit, word);
                     }
                 }
