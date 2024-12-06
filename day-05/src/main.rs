@@ -12,6 +12,7 @@ fn main() {
     match fs::read_to_string(UPDATES_PATH) {
         Ok(updates) => {
             let mut correct_updates: Vec<Vec<i32>> = Vec::new();
+            let mut incorrect_updates: Vec<Vec<i32>> = Vec::new();
             for update in updates.split_terminator("\n") {
                 let mut is_correct_order = true;
 
@@ -30,8 +31,11 @@ fn main() {
                     }
                 }
 
+                // println!("{:?}: {is_correct_order}", pages.clone());
                 if is_correct_order {
                     correct_updates.push(pages);
+                } else {
+                    incorrect_updates.push(pages);
                 }
             }
 
@@ -41,6 +45,13 @@ fn main() {
                 // println!("{correct_update:?}");
             }
             println!("middle page sum: {middle_page_sum}");
+
+            let mut corrected_middle_page_sum = 0;
+            for incorrect_update in incorrect_updates {
+                let corrected_update = correct_update(&incorrect_update, &rules);
+                corrected_middle_page_sum += get_middle_page(&corrected_update);
+            }
+            println!("corrected page sum: {corrected_middle_page_sum}");
         },
         Err(e) => {
             println!("failed to load updates: {e:?}");
@@ -81,6 +92,34 @@ fn correct_order(pages: &[i32], rules: &Vec<i32>) -> bool {
         }
     }
     return true;
+}
+
+fn correct_update(pages: &Vec<i32>, rules: &HashMap<i32, Vec<i32>>) -> Vec<i32> {
+    let mut ordered_pages: Vec<i32> = Vec::new();
+    for page in pages {
+        if ordered_pages.is_empty() {
+            ordered_pages.push(*page);
+        } else {
+            match rules.get(page) {
+                None => ordered_pages.push(*page),
+                Some(page_rules) => {
+                    let mut insert_i: Option<usize> = None;
+                    for (i, ordered_page) in ordered_pages.iter().enumerate() {
+                        if page_rules.contains(ordered_page) {
+                            insert_i = Some(i);
+                            break;
+                        }
+                    }
+
+                    match insert_i {
+                        None => ordered_pages.push(*page),
+                        Some(i) => ordered_pages.insert(i, *page)
+                    }
+                }
+            }
+        }
+    }
+    return ordered_pages;
 }
 
 fn get_middle_page(pages: &Vec<i32>) -> i32 {
