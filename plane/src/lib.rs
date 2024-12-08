@@ -1,5 +1,6 @@
-#[derive(Debug)]
+#[derive(Debug, Default)]
 enum Transform {
+    #[default]
     None,
     Decrease(usize),
     Increase(usize)
@@ -7,9 +8,9 @@ enum Transform {
 
 impl Transform {
     fn from(v: i32) -> Transform {
-        if v > 0 {
+        if v.is_positive() {
             Transform::Increase(v as usize)
-        } else if v < 0 {
+        } else if v.is_negative() {
             Transform::Decrease((v * -1) as usize)
         } else {
             Transform::None
@@ -42,7 +43,7 @@ pub struct Point {
     pub y: usize
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Offset {
     x: Transform,
     y: Transform
@@ -63,7 +64,7 @@ impl Offset {
         return Some(Point { x, y });
     }
 
-    // Move this to another abstraction representing the Plane, get point from Plane
+    // TODO Move this to another abstraction representing the Plane, get point from Plane
     pub fn apply_within(&self, point: &Point, limit: &Point) -> Option<Point> {
         let x = self.x.apply(point.x)?;
         let y = self.y.apply(point.y)?;
@@ -90,14 +91,14 @@ pub enum Direction {
 impl Direction {
     pub fn offset(&self) -> Offset {
         match self {
-            Direction::Up => Offset { x: Transform::None, y: Transform::Decrease(1) },
-            Direction::Right => Offset { x: Transform::Increase(1), y: Transform::None },
-            Direction::Down => Offset { x: Transform::None, y: Transform::Increase(1) },
-            Direction::Left => Offset { x: Transform::Decrease(1), y: Transform::None },
+            Direction::Up => Offset { y: Transform::Decrease(1), ..Default::default() },
+            Direction::Right => Offset { x: Transform::Increase(1), ..Default::default() },
+            Direction::Down => Offset { y: Transform::Increase(1), ..Default::default() },
+            Direction::Left => Offset { x: Transform::Decrease(1), ..Default::default() },
         }
     }
 
-    pub fn next(&self) -> Direction {
+    pub fn rotate_cw(&self) -> Direction {
         match self {
             Direction::Up => Direction::Right,
             Direction::Right => Direction::Down,

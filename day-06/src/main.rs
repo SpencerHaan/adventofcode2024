@@ -21,7 +21,7 @@ impl Guard {
     }
 
     fn turn(&mut self) {
-        self.direction = self.direction.next()
+        self.direction = self.direction.rotate_cw()
     }
 }
 
