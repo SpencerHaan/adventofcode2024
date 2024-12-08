@@ -1,11 +1,48 @@
-use std::{collections::HashSet, fs};
-
-type Floorplan = Vec<Vec<char>>;
+use std::{collections::HashSet, fs, hash::Hash};
 
 // const INPUT_PATH: &str = "./data/test_input.txt";
 const INPUT_PATH: &str = "./data/puzzle_input.txt";
 
-const CARDINAL_GUARDS: [char; 4] = ['<', '^', '>', 'v'];
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+struct Guard {
+    position: Point,
+    direction: Direction
+}
+
+impl Guard {
+    fn next(&self) -> Option<Point> {
+        self.direction.offset().apply(&self.position)
+    }
+
+    fn step(&mut self, to: Point) {
+        self.position = to
+    }
+
+    fn turn(&mut self) {
+        self.direction = self.direction.next()
+    }
+}
+
+struct Level {
+    limit: Point,
+    obstacles: HashSet<Point>
+}
+
+impl Level {
+    fn is_obstacle(&self, point: &Point) -> bool {
+        self.obstacles.contains(point)
+    }
+
+    fn with_obstacle(&self, obstacle: Point) -> Level {
+        let mut obstacles = self.obstacles.clone();
+        obstacles.insert(obstacle);
+
+        Level {
+            limit: self.limit,
+            obstacles
+        }
+    }
+}
 
 #[derive(Debug)]
 enum Transform {
@@ -47,7 +84,7 @@ impl Offset {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 enum Direction {
     Up,
     Right,
@@ -78,90 +115,133 @@ impl Direction {
 fn main() {
     match fs::read_to_string(INPUT_PATH) {
         Ok(data) => {
-            let floorplan = parse_floorplan(&data);
-            print_floorplan(&floorplan);
+            match parse_level(&data) {
+                Ok((level, guard)) =>  {
+                    print_level(&level, &guard);
+                    println!("{guard:?}");
 
-            match find_guard(&floorplan) {
-                None => println!("where's the guard?"),
-                Some((start, direction)) => {
-                    println!("starting at {start:?} and facing {direction:?}");
-
-                    let mut visited = HashSet::new();
-                    walk(start, direction, &floorplan, |p| -> () {
-                        visited.insert(p);
-                    });
-                    println!("distinct positions visited: {}", visited.len());
-                }
+                    find_loop_obstacles(&level, &guard);
+                },
+                Err(m) => println!("failed to parse level: {m}")
             }
         },
         Err(e) => {
-            println!("failed to load updates: {e:?}");
+            println!("failed to load level: {e:?}");
         }
     }
 }
 
-fn parse_floorplan(data: &str) -> Floorplan {
-    let mut floorplan: Floorplan = Floorplan::new();
-    for line in data.split_terminator("\n") {
-        floorplan.push(line.chars().collect());
+fn parse_level(data: &str) -> Result<(Level, Guard), &str> {
+    let mut guard = Err("guard not found");
+    let mut obstacles: HashSet<Point> = HashSet::new();
+
+    let mut x_limit: usize = 0;
+    let mut y_limit: usize = 0;
+
+    for (y, r) in data.split_terminator("\n").enumerate() {
+        y_limit += 1;
+        x_limit = r.len();
+
+        for (x, c) in r.chars().enumerate() {
+            let point = Point { x, y };
+            if c == '#' {
+                obstacles.insert(point);
+                continue;
+            } else if c == '^' {
+                guard = Ok(Guard {
+                    position: point,
+                    direction: Direction::Up
+                })
+            }
+        }
     }
-    return floorplan;
+
+    return Ok((
+        Level {
+            limit: Point { x: x_limit, y: y_limit },
+            obstacles
+        },
+        guard?,
+    ));
 }
 
-fn print_floorplan(floorplan: &Floorplan) {
-    let height = floorplan.len();
-    let width = floorplan[0].len();
-    for line in floorplan {
-        for c in line {
-            print!("{c}");
+fn print_level(level: &Level, guard: &Guard) {
+    for y in 0..level.limit.y {
+        for x in 0..level.limit.x {
+            let point = Point { x, y };
+            if level.obstacles.contains(&point) {
+                print!("#");
+            } else if guard.position == point {
+                print!("^");
+            } else {
+                print!(".");
+            }
         }
         println!();
     }
-    println!("floor plan is {width} x {height}");
     println!();
 }
 
-fn find_guard(floorplan: &Floorplan) -> Option<(Point, Direction)> {
-    for (y, line) in floorplan.iter().enumerate() {
-        for (x, c) in line.iter().enumerate() {
-            if CARDINAL_GUARDS.contains(c) {
-                return as_guard_direction(*c)
-                    .map(|d| (Point { x, y }, d));
+fn debug_print_level(level: &Level, guard: &Guard, visited: &HashSet<Guard>, test_obstacle: &Point) {
+    let visited_points: HashSet<Point> = HashSet::from_iter(visited.iter().map(|g| g.position));
+    for y in 0..level.limit.y {
+        for x in 0..level.limit.x {
+            let point = Point { x, y };
+            if point == *test_obstacle {
+                print!("0");
+            } else if visited_points.contains(&point) {
+                print!("X")
+            } else if level.obstacles.contains(&point) {
+                print!("#");
+            } else if guard.position == point {
+                print!("^");
+            } else {
+                print!(".");
             }
         }
+        println!();
     }
-    return None;
+    println!();
 }
 
-fn as_guard_direction(char: char) -> Option<Direction> {
-    if char == '^' { Some(Direction::Up) }
-    else if char == '>' { Some(Direction::Right) }
-    else if char == 'v' { Some(Direction::Down) }
-    else if char == '<' { Some(Direction::Left) }
-    else { None }
+fn find_loop_obstacles(level: &Level, guard: &Guard) {
+    let mut loop_obstacles = HashSet::new();
+    walk(*guard, level, |ghost| {
+        let to = ghost.next().unwrap();
+        let new_level = level.with_obstacle(to);
+
+        let mut visited = HashSet::new();
+        walk(*guard, &new_level, |g: Guard| {
+            if visited.contains(&g) {
+                loop_obstacles.insert(to);
+                return false;
+            } else {
+                visited.insert(g);
+                return true;
+            }
+        });
+        return true;
+    });
+    println!("loop obstacle count: {}", loop_obstacles.len());
 }
 
-fn walk<F>(from: Point, direction: Direction, floorplan: &Floorplan, mut visit: F) where F: FnMut(Point) {
-    match direction.offset().apply(&from) {
-        None => {
-            println!("we're out at {from:?}!");
-            return;
-        },
+fn walk<F>(mut guard: Guard, level: &Level, mut cont: F) where F: FnMut(Guard) -> bool {
+    match guard.next() {
+        None => (),
         Some(to) => {
-            if to.y >= floorplan.len() || to.x >= floorplan[to.y].len() {
-                println!("we're out at {from:?}!");
+            if to.x >= level.limit.x || to.y >= level.limit.y {
                 return;
             }
 
-            let c: char = floorplan[to.y][to.x];
-            if c == '#' {
-                // turn
-                return walk(from, direction.next(), floorplan, visit);
+            if level.is_obstacle(&to) {
+                guard.turn();
             } else {
-                // continue
-                visit(to.clone());
-                return walk(to, direction, floorplan, visit);
+                if !cont(guard) {
+                    return;
+                }
+                guard.step(to);
             }
+            return walk(guard, level, cont);
         }
     }
 }
