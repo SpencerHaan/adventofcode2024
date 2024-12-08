@@ -1,8 +1,8 @@
 use core::fmt;
-use std::{collections::VecDeque, fs};
+use std::collections::VecDeque;
 
-// const INPUT_PATH: &str = "./data/test_input.txt";
-const INPUT_PATH: &str = "./data/puzzle_input.txt";
+// const INPUT_PATH: &str = "./data/day_07_test_input.txt";
+const INPUT_PATH: &str = "./data/day_07_puzzle_input.txt";
 
 #[derive(Debug)]
 struct Equation {
@@ -41,34 +41,27 @@ impl Operator {
 }
 
 fn main() {
-    match fs::read_to_string(INPUT_PATH) {
-        Ok(data) => {
-            let equations = parse_equations(&data);
+    let equations = load_equations();
 
-            let mut total: u64 = 0;
-            for equation in equations {
-                if is_true(&equation) {
-                    total += equation.result;
-                }
-            }
-            println!("total calibration result: {total}");
-        },
-        Err(e) => {
-            println!("failed to load input: {e:?}");
+    let mut total: u64 = 0;
+    for equation in equations {
+        if is_true(&equation) {
+            total += equation.result;
         }
     }
+    println!("total calibration result: {total}");
 }
 
-fn parse_equations(data: &str) -> Vec<Equation> {
+fn load_equations() -> Vec<Equation> {
     let mut equations = Vec::new();
-    for line in data.split_terminator("\n") {
+    input::lines(INPUT_PATH, |line| {
         let (result, values) = line.split_once(":").unwrap();
         let equation = Equation {
             result: result.parse::<u64>().unwrap(),
             values: values.split_whitespace().map(|v| v.parse::<u64>().unwrap()).collect()
         };
         equations.push(equation);
-    }
+    });
     return equations;
 }
 
