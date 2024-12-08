@@ -13,6 +13,7 @@ struct Equation {
 enum Operator {
     Add,
     Multiply,
+    Concat
 }
 
 impl fmt::Display for Operator {
@@ -20,19 +21,21 @@ impl fmt::Display for Operator {
         match self {
             Operator::Add => write!(f, "+"),
             Operator::Multiply => write!(f, "*"),
+            Operator::Concat => write!(f, "||")
         }
     }
 }
 
 impl Operator {
     fn values() -> Vec<Operator> {
-        vec![Operator::Add, Operator::Multiply]
+        vec![Operator::Add, Operator::Multiply, Operator::Concat]
     }
 
     fn evaluate(&self, a: u64, b: u64) -> u64 {
         match self {
             Operator::Add => a + b,
             Operator::Multiply => a * b,
+            Operator::Concat => format!("{a}{b}").parse::<u64>().unwrap()
         }
     }
 }
