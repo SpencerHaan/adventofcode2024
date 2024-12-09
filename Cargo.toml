@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+  "input",
   "plane",
   "day-01",
   "day-02",
@@ -8,5 +9,6 @@ members = [
   "day-04",
   "day-05",
   "day-06",
-  "day-07"
-, "input"]
+  "day-07",
+  "day-08"
+]

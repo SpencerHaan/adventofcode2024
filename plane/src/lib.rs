@@ -1,3 +1,5 @@
+use core::fmt;
+
 #[derive(Debug, Default)]
 enum Transform {
     #[default]
@@ -21,10 +23,15 @@ impl Transform {
         return match self {
             Transform::None => Some(value),
             Transform::Decrease(amount) => {
-                if value == 0 { None }
+                let (_, overflow) = value.overflowing_sub(*amount);
+                if overflow { None }
                 else { Some(value - amount) }
             },
-            Transform::Increase(amount) => Some(value + amount),
+            Transform::Increase(amount) =>{
+                let (_, overflow) = value.overflowing_add(*amount);
+                if overflow { None }
+                else { Some(value + amount) }
+            },
         }
     }
 
@@ -37,10 +44,50 @@ impl Transform {
     }
 }
 
+impl fmt::Display for Transform {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Transform::None => write!(f, "0"),
+            Transform::Decrease(v) => write!(f, "-{v}"),
+            Transform::Increase(v) => write!(f, "{v}"),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct Point {
     pub x: usize,
     pub y: usize
+}
+
+impl Point {
+    pub fn offset_from(&self, other: &Point) -> Offset {
+        let (_, x_overflow) = self.x.overflowing_sub(other.x);
+        let x = if x_overflow { Transform::Decrease(self.x.abs_diff(other.x)) } else { Transform::Increase(self.x.abs_diff(other.x)) };
+
+        let (_, y_overflow) = self.y.overflowing_sub(other.y);
+        let y = if y_overflow { Transform::Decrease(self.y.abs_diff(other.y)) } else { Transform::Increase(self.y.abs_diff(other.y)) };
+
+        Offset { x, y }
+    }
+}
+
+impl fmt::Display for Point {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}, {})", self.x, self.y)
+    }
+}
+
+#[derive(Debug)]
+pub struct Rect {
+    pub width: usize,
+    pub height: usize
+}
+
+impl Rect {
+    pub fn contains(&self, point: &Point) -> bool {
+        point.x < self.width && point.y < self.height
+    }
 }
 
 #[derive(Debug, Default)]
@@ -77,6 +124,12 @@ impl Offset {
 
     pub fn inverse(&self) -> Offset {
         return Offset { x: self.x.reverse(), y: self.y.reverse() };
+    }
+}
+
+impl fmt::Display for Offset {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}, {})", self.x, self.y)
     }
 }
 

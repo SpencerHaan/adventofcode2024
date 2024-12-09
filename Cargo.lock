@@ -63,6 +63,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "day-08"
+version = "0.1.0"
+dependencies = [
+ "input",
+ "plane",
+]
+
+[[package]]
 name = "input"
 version = "0.1.0"
 
