@@ -46,27 +46,35 @@ fn find_antinodes(limit: &Rect, frequencies: &HashMap<char, Vec<Point>>) -> Hash
     for (_, antennas) in frequencies {
         for t in 0..antennas.len() {
             let target = antennas.get(t).unwrap();
+            if !antennas.is_empty() {
+                antinodes.insert(*target);
+            }
             for s in (t + 1)..antennas.len() {
                 let subject = antennas.get(s).unwrap();
-                let offset = target.offset_from(subject);
+                antinodes.insert(*subject);
 
-                match offset.apply(target) {
-                    Some(antinode) => {
-                        if limit.contains(&antinode) {
-                            antinodes.insert(antinode);
-                        }
-                    }
-                    None => ()
-                }
-                match offset.inverse().apply(subject) {
-                    Some(antinode) => {
-                        if limit.contains(&antinode) {
-                            antinodes.insert(antinode);
-                        }
-                    },
-                    None => ()
-                }
+                let offset = target.offset_from(subject);
+                antinodes.extend(find_antinodes_from(target, limit, &offset));
+                antinodes.extend(find_antinodes_from(subject, limit, &offset.inverse()));
             }
+        }
+    }
+    return antinodes;
+}
+
+fn find_antinodes_from(from: &Point, limit: &Rect, offset: &Offset) -> HashSet<Point> {
+    let mut antinodes: HashSet<Point> = HashSet::new();
+    let mut next = *from;
+    loop {
+        match offset.apply(&next) {
+            Some(antinode) => {
+                if !limit.contains(&antinode) {
+                    break;
+                }
+                antinodes.insert(antinode);
+                next = antinode;
+            }
+            None => break
         }
     }
     return antinodes;
