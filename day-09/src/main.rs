@@ -6,13 +6,15 @@ const INPUT_PATH: &str = "./data/day_09_puzzle_input.txt";
 const EMPTY_PLACEHOLDER: i32 = -1;
 
 fn main() {
-    let disk_map = load_disk_map();
-    let compressed_disk_map = compress_disk_map(disk_map);
-    let checksum = calculate_checksum(&compressed_disk_map);
+    let (mut disk_map, next_file_id) = load_disk_map();
+    optimize_disk_map(&mut disk_map, next_file_id);
+    print_disk_map(&disk_map);
+
+    let checksum = calculate_checksum(&disk_map);
     println!("checksum is: {checksum}");
 }
 
-fn load_disk_map() -> Vec<i32> {
+fn load_disk_map() -> (Vec<i32>, i32) {
     let mut disk_map: Vec<i32> = Vec::new();
 
     let mut is_file = true;
@@ -33,46 +35,89 @@ fn load_disk_map() -> Vec<i32> {
         },
         Err(e) => panic!("{e:?}"),
     }
-    return disk_map;
+    return (disk_map, file_id_counter);
 }
 
-// fn print_disk_map(disk_map: &Vec<i32>) {
-//     for i in disk_map {
-//         if *i == EMPTY_PLACEHOLDER {
-//             print!(".");
-//         } else {
-//             print!("{i}");
-//         }
-//     }
-//     println!();
-// }
-
-fn compress_disk_map(disk_map: Vec<i32>) -> Vec<i32> {
-    let mut compressed_disk_map = disk_map;
-    let left_index = 0;
-    let right_index = compressed_disk_map.len() - 1;
-    swap_left(&mut compressed_disk_map, left_index, right_index);
-    return compressed_disk_map;
+fn print_disk_map(disk_map: &Vec<i32>) {
+    for i in disk_map {
+        if *i == EMPTY_PLACEHOLDER {
+            print!(".");
+        } else {
+            print!("{i}");
+        }
+    }
+    println!();
+    println!();
 }
 
-fn swap_left(disk_map: &mut Vec<i32>, left_index: usize, right_index: usize) {
-    if left_index == right_index {
-        return;
+fn optimize_disk_map(disk_map: &mut Vec<i32>, next_file_id: i32) {
+    for file_id in (0..next_file_id).rev() {
+        match find_swap_candidate(disk_map, file_id) {
+            Some((file_offset, free_offset, size)) => {
+                // println!("move {file_id} from {file_offset} to {free_offset}: size {size}");
+                replace(disk_map, free_offset, size, file_id);
+                replace(disk_map, file_offset, size, EMPTY_PLACEHOLDER);
+            },
+            None => continue
+        }
     }
+}
 
-    let left = disk_map[left_index];
-    if left != EMPTY_PLACEHOLDER {
-        return swap_left(disk_map, left_index + 1, right_index);
+fn find_swap_candidate(disk_map: &Vec<i32>, file_id: i32) -> Option<(usize, usize, usize)> {
+    let (file_offset, size) = find_file(disk_map, file_id)?;
+    let free_offset = find_free_offset(disk_map, size)?;
+
+    if free_offset < file_offset {
+        return Some((file_offset, free_offset, size));
     }
+    return None;
+}
 
-    let right = disk_map[right_index];
-    if right == EMPTY_PLACEHOLDER {
-        return swap_left(disk_map, left_index, right_index - 1);
+fn find_file(disk_map: &Vec<i32>, file_id: i32) -> Option<(usize, usize)> {
+    let mut offset: Option<usize> = None;
+
+    let mut blocks: usize = 0;
+    for i in 0..disk_map.len() {
+        let block = *disk_map.get(i).unwrap();
+        if block != file_id && offset.is_some() {
+            break;
+        }
+
+        if block == file_id {
+            if offset.is_none() {
+                offset = Some(i);
+            }
+            blocks += 1;
+        }
     }
+    return offset.map(|o| (o, blocks));
+}
 
-    disk_map[left_index] = right;
-    disk_map[right_index] = left;
-    return swap_left(disk_map, left_index + 1, right_index - 1);
+fn find_free_offset(disk_map: &Vec<i32>, size: usize) -> Option<usize> {
+    let mut offset: Option<usize> = None;
+
+    let mut blocks: usize = 0;
+    for (i, block) in disk_map.iter().enumerate() {
+        if *block != EMPTY_PLACEHOLDER {
+            offset = None;
+            blocks = 0;
+        } else if offset.is_none() {
+            offset = Some(i);
+        }
+
+        if offset.is_some() && blocks == size {
+            // println!("found freespace at {offset:?} with size {blocks}");
+            break;
+        }
+        blocks += 1;
+    }
+    return offset.filter(|_| blocks == size);
+}
+
+fn replace(disk_map: &mut Vec<i32>, offset: usize, size: usize, block: i32) {
+    for i in offset..(offset + size) {
+        disk_map[i] = block;
+    }
 }
 
 fn calculate_checksum(disk_map: &Vec<i32>) -> u64 {
