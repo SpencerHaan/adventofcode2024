@@ -14,14 +14,16 @@ fn main() {
     println!("possible trailhead candidates: {}", trailhead_candidates.len());
 
     let mut total_score = 0;
+    let mut total_rating = 0;
     for trailhead in trailhead_candidates {
         let mut peaks_reached: HashSet<Point> = HashSet::new();
-        find_trails(&map, bounds, trailhead, Direction::Up, MIN_ELEVATION, &mut peaks_reached);
-        println!("score for {trailhead} is {}", peaks_reached.len());
+        let rating = find_trails(&map, bounds, trailhead, Direction::Up, MIN_ELEVATION, &mut peaks_reached);
+        println!("{trailhead}: score {}, rating: {rating}", peaks_reached.len());
 
         total_score += peaks_reached.len();
+        total_rating += rating;
     }
-    println!("total trailhead score is {total_score}");
+    println!("trailhead totals: score {total_score}, rating {total_rating}");
 }
 
 fn load_map() -> (HashMap<Point, u32>, Rect, Vec<Point>) {
@@ -61,14 +63,15 @@ fn print_map(map: &HashMap<Point, u32>, bounds: &Rect) {
     println!();
 }
 
-fn find_trails(map: &HashMap<Point, u32>, bounds: Rect, from: Point, heading: Direction, current_elevation: u32, peaks_reached: &mut HashSet<Point>) {
+fn find_trails(map: &HashMap<Point, u32>, bounds: Rect, from: Point, heading: Direction, current_elevation: u32, peaks_reached: &mut HashSet<Point>) -> u32 {
     if current_elevation == MAX_ELEVATION {
         peaks_reached.insert(from);
-        return;
+        return 1;
     }
 
     let next_elevation = current_elevation + 1;
 
+    let mut rating = 0;
     for direction in heading.into_iter() {
         match direction.offset().apply(&from) {
             Some(to) => {
@@ -76,7 +79,7 @@ fn find_trails(map: &HashMap<Point, u32>, bounds: Rect, from: Point, heading: Di
                     match map.get(&to) {
                         Some(elevation) => {
                             if *elevation == next_elevation {
-                                find_trails(map, bounds, to, direction, next_elevation, peaks_reached);
+                                rating += find_trails(map, bounds, to, direction, next_elevation, peaks_reached);
                             }
                         },
                         None => panic!("point not within map"),
@@ -86,4 +89,5 @@ fn find_trails(map: &HashMap<Point, u32>, bounds: Rect, from: Point, heading: Di
             None => ()
         }
     }
+    return rating;
 }
