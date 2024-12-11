@@ -75,6 +75,14 @@ name = "day-09"
 version = "0.1.0"
 
 [[package]]
+name = "day-10"
+version = "0.1.0"
+dependencies = [
+ "input",
+ "plane",
+]
+
+[[package]]
 name = "input"
 version = "0.1.0"
 

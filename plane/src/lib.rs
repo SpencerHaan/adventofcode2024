@@ -78,7 +78,7 @@ impl fmt::Display for Point {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Rect {
     pub width: usize,
     pub height: usize
@@ -87,6 +87,49 @@ pub struct Rect {
 impl Rect {
     pub fn contains(&self, point: &Point) -> bool {
         point.x < self.width && point.y < self.height
+    }
+}
+
+impl IntoIterator for Rect {
+    type Item = (Point, bool);
+    type IntoIter = RectIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        RectIterator {
+            rect: self,
+            current_x: 0,
+            current_y: 0
+        }
+    }
+}
+
+pub struct RectIterator {
+    rect: Rect,
+    current_x: usize,
+    current_y: usize
+}
+
+impl Iterator for RectIterator {
+    type Item = (Point, bool);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut overflow = false;
+        if self.current_x >= self.rect.width {
+            self.current_x = 0;
+            self.current_y += 1;
+            overflow = true;
+        }
+
+        if self.current_y >= self.rect.height {
+            return None;
+        }
+
+        let point = Point {
+            x: self.current_x,
+            y: self.current_y
+        };
+        self.current_x += 1;
+        return Some((point, overflow));
     }
 }
 
@@ -158,5 +201,39 @@ impl Direction {
             Direction::Down => Direction::Left,
             Direction::Left => Direction::Up,
         }
+    }
+}
+
+impl IntoIterator for Direction {
+    type Item = Direction;
+    type IntoIter = DirectionIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        DirectionIterator {
+            current: self,
+            count: 0
+        }
+    }
+}
+
+pub struct DirectionIterator {
+    current: Direction,
+    count: usize
+}
+
+impl Iterator for DirectionIterator {
+    type Item = Direction;
+
+    fn next(&mut self) -> Option<Self::Item> {
+
+        if self.count < 4 {
+            let direction = self.current;
+
+            self.current = self.current.rotate_cw();
+            self.count += 1;
+
+            return Some(direction);
+        }
+        return None;
     }
 }
